@@ -1,7 +1,7 @@
 // Krane AI — Service Worker v1.0
 // GitHub Pages deploy — notifiche push native abilitate
 
-const CACHE_NAME = 'krane-v2';
+const CACHE_NAME = 'krane-v3';
 const CACHE_ASSETS = ['./', './index.html', './css/style.css', './js/app.js', './manifest.json'];
 
 self.addEventListener('install', e => {
