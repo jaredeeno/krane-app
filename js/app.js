@@ -9,7 +9,7 @@ const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzJpKUtSCtOewTsRkOa
 
 // ── Service Worker (ora funziona perché siamo su GitHub Pages) ──
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js')
+  navigator.serviceWorker.register('./sw.js')
     .then(() => console.log('[SW] Registrato'))
     .catch(e => console.warn('[SW] Errore registrazione:', e.message));
 }

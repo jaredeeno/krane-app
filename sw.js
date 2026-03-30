@@ -2,7 +2,7 @@
 // GitHub Pages deploy — notifiche push native abilitate
 
 const CACHE_NAME = 'krane-v1';
-const CACHE_ASSETS = ['/', '/index.html', '/css/style.css', '/js/app.js', '/manifest.json'];
+const CACHE_ASSETS = ['./', './index.html', './css/style.css', './js/app.js', './manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -34,8 +34,8 @@ self.addEventListener('push', e => {
   e.waitUntil(
     self.registration.showNotification(data.title || 'Krane AI', {
       body: data.body || '',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      icon: './icons/icon-192.png',
+      badge: './icons/icon-192.png',
       tag: 'krane-notif',
       renotify: true,
       data: data
