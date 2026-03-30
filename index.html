@@ -225,6 +225,104 @@
       </div>
     </div>
 
+    <!-- PERSONALE (visibile solo a jared) -->
+    <div class="page" id="pagePersonale">
+      <div class="page-header" style="background:linear-gradient(135deg,rgba(225,48,108,0.12),rgba(253,121,36,0.08));border-radius:20px;margin-bottom:8px">
+        <h1>📸 Personale</h1>
+        <p id="personalSubtitle">Il tuo account Instagram privato</p>
+      </div>
+
+      <!-- SETUP (prima configurazione) -->
+      <div id="personalSetup">
+        <div class="glass" style="padding:24px;border-radius:20px;margin-bottom:16px">
+          <div class="section-title" style="margin:0 0 8px">Configura il tuo account</div>
+          <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;line-height:1.5">Prima volta? Inserisci i dettagli del tuo profilo IG personale.<br>Krane userà queste info per generare contenuti su misura.</p>
+          <input class="login-input" id="personalIgHandle" placeholder="@username Instagram" style="margin-bottom:8px">
+          <input class="login-input" id="personalBrief" placeholder="Brief (es: tech creator, lifestyle, design...)" style="margin-bottom:8px">
+          <input class="login-input" id="personalTarget" placeholder="Target (es: 25-35, tech enthusiast, italiano)" style="margin-bottom:16px">
+          <button class="login-btn" style="background:linear-gradient(135deg,#e1306c,#fd7925)" onclick="KR.initPersonalClient()">Configura ›</button>
+        </div>
+      </div>
+
+      <!-- MAIN (dopo setup) -->
+      <div id="personalMain" style="display:none">
+        <!-- Account card -->
+        <div class="glass welcome-banner" style="margin-bottom:16px">
+          <div class="wb-glow" style="background:linear-gradient(135deg,#e1306c,#fd7925);opacity:0.5"></div>
+          <div class="wb-row">
+            <div class="wb-avatar" style="background:linear-gradient(135deg,#e1306c,#fd7925)">📸</div>
+            <div class="wb-info">
+              <div class="wb-name" id="personalHandle">—</div>
+              <div class="wb-role" id="personalTarget2">Account Personale</div>
+            </div>
+          </div>
+          <div class="wb-status">
+            <div class="wb-status-dot" style="background:#e1306c"></div>
+            <div class="wb-status-text" id="personalBriefPreview">—</div>
+          </div>
+        </div>
+
+        <!-- Stats rapide -->
+        <div class="stat-grid" style="margin-bottom:16px">
+          <div class="stat-tile glass" style="border-color:rgba(225,48,108,0.3)">
+            <div class="stat-icon" style="color:#e1306c">📋</div>
+            <div class="stat-value" id="personalStatAssets" style="color:#e1306c">—</div>
+            <div class="stat-label">Questo mese</div>
+          </div>
+          <div class="stat-tile glass" style="border-color:rgba(253,121,36,0.3)">
+            <div class="stat-icon" style="color:#fd7925">✅</div>
+            <div class="stat-value" id="personalStatApproved" style="color:#fd7925">—</div>
+            <div class="stat-label">Approvati</div>
+          </div>
+          <div class="stat-tile glass" style="border-color:rgba(245,158,11,0.3)">
+            <div class="stat-icon" style="color:var(--a3)">⚠️</div>
+            <div class="stat-value" id="personalStatMancanti" style="color:var(--a3)">—</div>
+            <div class="stat-label">Da produrre</div>
+          </div>
+        </div>
+
+        <!-- Calendario mese -->
+        <div class="month-selector">
+          <button class="month-arrow" onclick="KR.personalChangeMonth(-1)">‹</button>
+          <div class="month-name" id="personalMonthName">—</div>
+          <button class="month-arrow" onclick="KR.personalChangeMonth(1)">›</button>
+        </div>
+        <div class="cal-grid" id="personalCalGrid"></div>
+
+        <!-- Azioni rapide -->
+        <div class="section-title" style="margin-top:20px">Azioni</div>
+        <div class="quick-actions" style="grid-template-columns:1fr 1fr">
+          <div class="quick-tile glass" onclick="KR.openSheet('personalGeneraPED')">
+            <div class="qt-glow" style="background:linear-gradient(135deg,#e1306c,#fd7925)"></div>
+            <div class="qt-icon" style="background:rgba(225,48,108,0.12)">📋</div>
+            <div class="qt-label">Genera PED</div>
+            <div class="qt-desc">Con prompt personalizzato</div>
+          </div>
+          <div class="quick-tile glass" onclick="KR.openSheet('personalMancanti')">
+            <div class="qt-glow" style="background:rgba(245,158,11,0.5)"></div>
+            <div class="qt-icon" style="background:rgba(245,158,11,0.12)">⚠️</div>
+            <div class="qt-label">Mancanti</div>
+            <div class="qt-desc">Asset da produrre</div>
+          </div>
+          <div class="quick-tile glass" onclick="KR.openSheet('personalEditClient')">
+            <div class="qt-glow" style="background:rgba(167,139,250,0.5)"></div>
+            <div class="qt-icon" style="background:rgba(167,139,250,0.12)">⚙️</div>
+            <div class="qt-label">Modifica Profilo</div>
+            <div class="qt-desc">Brief, target, tono</div>
+          </div>
+        </div>
+
+        <!-- Asset list -->
+        <div class="section-row" style="margin-top:20px">
+          <div class="section-title" style="margin:0">Contenuti del mese</div>
+          <span class="see-all" onclick="KR.loadPersonalePED()">Aggiorna ›</span>
+        </div>
+        <div id="personalAssetList">
+          <div class="empty-state"><div class="empty-state-icon">📸</div><div class="empty-state-text">Nessun PED generato<br>per questo mese</div></div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /page-wrapper -->
 
   <!-- BOTTOM NAV -->
@@ -234,6 +332,11 @@
     <button class="nav-item" onclick="KR.nav(2)"><span class="nav-icon nav-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></span><span class="nav-label">PED</span></button>
     <button class="nav-item" onclick="KR.nav(3)"><span class="nav-icon nav-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></span><span class="nav-label">Stats</span></button>
     <button class="nav-item" onclick="KR.nav(4)"><span class="nav-icon nav-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="nav-label">Altro</span></button>
+    <!-- Tab Personale — visibile SOLO a jared, nascosta di default -->
+    <button class="nav-item" id="navPersonale" style="display:none;position:relative" onclick="KR.nav(5)">
+      <span class="nav-icon" style="font-size:20px">📸</span>
+      <span class="nav-label" style="background:linear-gradient(135deg,#e1306c,#fd7925);-webkit-background-clip:text;-webkit-text-fill-color:transparent">IG</span>
+    </button>
   </nav>
 </div>
 

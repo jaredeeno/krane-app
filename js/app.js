@@ -101,10 +101,14 @@ const KR = (() => {
   }
 
   // ── NAVIGATION ──
-  const pages = ['pageDashboard', 'pageClienti', 'pagePED', 'pageStats', 'pageAltro'];
+  const pages = ['pageDashboard', 'pageClienti', 'pagePED', 'pageStats', 'pageAltro', 'pagePersonale'];
   let _navItems = null;
   let _pageDoms = null;
   let _currentPage = 0;
+  // Stato pagina personale
+  let personalMonth = new Date().getMonth() + 1;
+  let personalYear  = new Date().getFullYear();
+  let _personalInited = false;
   function nav(n) {
     if (n === _currentPage && _pageDoms) return; // gi\u00E0 sulla pagina
     _currentPage = n;
@@ -122,6 +126,7 @@ const KR = (() => {
     if (n === 2) loadPED();
     if (n === 3) loadStats();
     if (n === 4) loadTeam();
+    if (n === 5) loadPersonale();
   }
 
   function switchSub(chip, showId) {
@@ -300,6 +305,12 @@ const KR = (() => {
       if (fab) fab.setAttribute('data-hidden-role', '1');
     }
 
+    // Tab Personale — solo jared
+    if (currentUser.username === 'jared') {
+      const navP = $('navPersonale');
+      if (navP) navP.style.display = '';
+    }
+
     // Saluto personalizzato per utente
     const _saluti = {
       'jared': 'Salve, Jared',
@@ -386,27 +397,33 @@ const KR = (() => {
     const el = $('notifPrompt');
     if (el) el.style.display = 'none';
 
-    // Caso 1: Notification API disponibile
-    if ('Notification' in window) {
-      try {
-        const result = await Notification.requestPermission();
-        console.log('[NOTIF] Permission result:', result);
-        if (result === 'granted') {
-          showToast('Notifiche attivate! 🔔');
-          // Test: mostra una notifica di prova
-          try { new Notification('Krane AI', { body: 'Le notifiche funzionano!' }); } catch (e) {}
-        } else if (result === 'denied') {
-          showToast('Permesso negato — vai in Impostazioni > Notifiche per riattivarlo');
-        } else {
-          showToast('Permesso non concesso');
-        }
-      } catch (e) {
-        console.warn('[NOTIF] Error:', e);
-        showToast('Errore nella richiesta permesso');
+    if (!('Notification' in window)) {
+      showToast('Notifiche non disponibili — apri dall\'icona Home');
+      return;
+    }
+
+    try {
+      // iOS richiede che il Service Worker sia attivo prima di requestPermission
+      if ('serviceWorker' in navigator) {
+        await Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise(r => setTimeout(r, 3000)) // timeout 3s — non bloccare
+        ]);
       }
-    } else {
-      // Caso 2: API non disponibile (versione iOS vecchia o non è una PWA)
-      showToast('Notifiche non disponibili — assicurati di aprire da icona Home');
+
+      const result = await Notification.requestPermission();
+      if (result === 'granted') {
+        showToast('Notifiche attivate!');
+        // Mostra notifica di test tramite SW (richiesto da iOS)
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.ready;
+          reg.showNotification('Krane AI', { body: 'Le notifiche funzionano!', icon: './icons/icon-192.png' });
+        }
+      } else if (result === 'denied') {
+        showToast('Permesso negato — vai su Impostazioni > App > Krane AI > Notifiche');
+      }
+    } catch (e) {
+      showToast('Errore: ' + e.message);
     }
   }
 
@@ -1928,10 +1945,41 @@ const KR = (() => {
         break;
 
       case 'regen':
-        // Contenuto gi\u00E0 impostato da openRegenSheet — apri solo l'overlay
+        // Contenuto già impostato da openRegenSheet — apri solo l'overlay
         $('sheetOverlay').classList.add('open');
         haptic(12);
         return;
+
+      case 'personalGeneraPED':
+        html = `<div class="sheet-title">📋 Genera PED Personale</div>
+        <div class="sheet-subtitle">Guida la Volpe con un prompt su cosa vuoi creare questo mese</div>
+        <textarea class="sheet-textarea" id="personalPrompt" placeholder="Es: questo mese voglio postare contenuti sul mio setup, mostrare il processo creativo dietro ai progetti, e un po' di lifestyle del weekend..." style="height:140px"></textarea>
+        <div style="font-size:11px;color:var(--text-t);margin:8px 0 12px;line-height:1.5">Il prompt è opzionale — se lasci vuoto, la Volpe userà il tuo brief standard.<br>Più sei specifico, più il PED sarà su misura.</div>
+        <button class="sheet-btn" style="background:linear-gradient(135deg,#e1306c,#fd7925)" onclick="KR.submitPersonalPED()">Genera ›</button>`;
+        break;
+
+      case 'personalMancanti':
+        html = `<div class="sheet-title">⚠️ Asset Mancanti</div>
+        <div class="sheet-subtitle">Contenuti del tuo IG ancora da produrre</div>
+        <div id="personalMancantiList"><div class="page-loading"><div class="spinner"></div></div></div>`;
+        setTimeout(loadPersonalMancanti, 100);
+        break;
+
+      case 'personalEditClient':
+        html = `<div class="sheet-title">⚙️ Modifica Profilo IG</div>
+        <div class="sheet-subtitle">Aggiorna le info del tuo account personale</div>
+        <input class="sheet-input" id="peHandle" placeholder="@username Instagram">
+        <textarea class="sheet-textarea" id="peBrief" placeholder="Brief personale..." style="height:100px"></textarea>
+        <input class="sheet-input" id="peTarget" placeholder="Target (es. 25-35, design, tech)">
+        <button class="sheet-btn" style="background:linear-gradient(135deg,#e1306c,#fd7925)" onclick="KR.submitPersonalEdit()">Salva ›</button>`;
+        setTimeout(() => {
+          const h = $('peHandle'); const b = $('peBrief'); const t = $('peTarget');
+          const s = JSON.parse(localStorage.getItem('kr_personal_profile') || '{}');
+          if (h && s.handle) h.value = s.handle;
+          if (b && s.brief)  b.value = s.brief;
+          if (t && s.target) t.value = s.target;
+        }, 80);
+        break;
     }
 
     sc.innerHTML = html;
@@ -1941,6 +1989,202 @@ const KR = (() => {
 
   function closeSheet() {
     $('sheetOverlay').classList.remove('open');
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // PAGINA PERSONALE (solo jared)
+  // ══════════════════════════════════════════════════════════
+
+  async function loadPersonale() {
+    // Prima volta — controlla se JARED_IG esiste già nel GAS
+    const profile = JSON.parse(localStorage.getItem('kr_personal_profile') || '{}');
+    if (profile.inited) {
+      _showPersonalMain(profile);
+      loadPersonalePED();
+    } else {
+      // Mostra il form di setup
+      $('personalSetup').style.display = 'block';
+      $('personalMain').style.display  = 'none';
+    }
+  }
+
+  function _showPersonalMain(profile) {
+    $('personalSetup').style.display  = 'none';
+    $('personalMain').style.display   = 'block';
+    $('personalHandle').textContent   = profile.handle || '@jared';
+    $('personalTarget2').textContent  = profile.target || 'Account Personale';
+    $('personalBriefPreview').textContent = (profile.brief || '').substring(0, 60) + (profile.brief && profile.brief.length > 60 ? '…' : '');
+    // Mese corrente
+    const mesi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    $('personalMonthName').textContent = mesi[personalMonth - 1] + ' ' + personalYear;
+  }
+
+  async function initPersonalClient() {
+    const handle = ($('personalIgHandle').value || '').trim();
+    const brief  = ($('personalBrief').value  || '').trim();
+    const target = ($('personalTarget').value || '').trim();
+    if (!handle) { showToast('Inserisci il tuo @username IG'); return; }
+    showToast('Configurazione in corso…');
+    try {
+      const res = await gas('initJaredPersonalClient', handle, brief, target);
+      if (!res || !res.ok) { showToast('Errore: ' + (res && res.errore || 'sconosciuto')); return; }
+      const profile = { inited: true, handle, brief, target };
+      localStorage.setItem('kr_personal_profile', JSON.stringify(profile));
+      _showPersonalMain(profile);
+      loadPersonalePED();
+      showToast('Account configurato!');
+    } catch (e) { showToast('Errore connessione'); }
+  }
+
+  async function loadPersonalePED() {
+    const profile = JSON.parse(localStorage.getItem('kr_personal_profile') || '{}');
+    if (!profile.inited) return;
+    // Mese corrente
+    const mesi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    $('personalMonthName').textContent = mesi[personalMonth - 1] + ' ' + personalYear;
+    $('personalAssetList').innerHTML = '<div class="page-loading"><div class="spinner"></div></div>';
+    try {
+      const res = await gas('getPEDCalendario', 'JARED_IG', personalYear, personalMonth);
+      if (!res || !res.ok) {
+        $('personalAssetList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📸</div><div class="empty-state-text">Nessun PED per questo mese</div></div>';
+        return;
+      }
+      const assets = res.assets || [];
+      // Statistiche rapide
+      const approvati  = assets.filter(a => a.stato === 'Approvato' || a.stato === 'Pubblicato').length;
+      const mancanti   = assets.filter(a => a.stato === 'Proposto' || a.stato === 'Da Produrre').length;
+      $('personalStatAssets').textContent   = assets.length;
+      $('personalStatApproved').textContent = approvati;
+      $('personalStatMancanti').textContent = mancanti;
+      // Calendario (riuso la stessa funzione ma con griglia diversa)
+      _renderPersonalCalendar(assets, personalYear, personalMonth);
+      // Asset list (riuso renderPEDAssets ma su container diverso)
+      _renderPersonalAssets(assets);
+    } catch (e) {
+      $('personalAssetList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Errore caricamento</div></div>';
+    }
+  }
+
+  function _renderPersonalCalendar(assets, year, month) {
+    const grid = $('personalCalGrid');
+    if (!grid) return;
+    let html = '<div class="cal-day-name">L</div><div class="cal-day-name">M</div><div class="cal-day-name">M</div><div class="cal-day-name">G</div><div class="cal-day-name">V</div><div class="cal-day-name">S</div><div class="cal-day-name">D</div>';
+    const firstDay    = new Date(year, month - 1, 1).getDay();
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const today       = new Date();
+    const startOffset = firstDay === 0 ? 6 : firstDay - 1;
+    const dayMap = {};
+    (assets || []).forEach(a => {
+      const d = new Date(a.data).getDate();
+      if (!dayMap[d]) dayMap[d] = [];
+      dayMap[d].push(a);
+    });
+    const igPink = '#e1306c';
+    for (let i = 0; i < startOffset; i++) html += '<div class="cal-day"></div>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const isToday  = (d === today.getDate() && month === today.getMonth() + 1 && year === today.getFullYear());
+      const hasItems = dayMap[d] && dayMap[d].length > 0;
+      let cls = 'cal-day';
+      if (isToday) cls += ' today';
+      else if (hasItems) cls += ' has-content';
+      let dots = '';
+      if (hasItems && !isToday) {
+        dots = '<div class="cal-dot-row">' + dayMap[d].slice(0, 3).map(() => `<div class="cal-tiny-dot" style="background:${igPink}"></div>`).join('') + '</div>';
+      }
+      html += `<div class="${cls}">${d}${dots}</div>`;
+    }
+    grid.innerHTML = html;
+  }
+
+  function _renderPersonalAssets(assets) {
+    const container = $('personalAssetList');
+    if (!assets || assets.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📸</div><div class="empty-state-text">Nessun contenuto per questo mese</div></div>';
+      return;
+    }
+    const badgeClass = { 'Reel': 'badge-reel', 'Post': 'badge-post', 'Carosello': 'badge-carosello' };
+    container.innerHTML = assets.map(a => {
+      const bc = badgeClass[a.tipo] || 'badge-post';
+      const designHtml = a.design ? renderDesignPreview(a.design) : '';
+      const statusHtml = getStatusBadge(a.stato);
+      return `<div class="asset-card glass" style="border-color:rgba(225,48,108,0.15)">
+        <div class="asset-header">
+          <div class="asset-type-badge ${bc}">${a.tipo || '?'}</div>
+          <div class="asset-info">
+            <div class="asset-title">${a.titolo || 'Senza titolo'}</div>
+            <div class="asset-status">${statusHtml} · ${new Date(a.data).toLocaleDateString('it-IT')}</div>
+          </div>
+          <button class="preview-asset-btn" onclick="KR.openSheet('previewAsset',{clienteId:'JARED_IG',rowIndex:${a.rowIndex}})" title="Anteprima">👁️</button>
+          <button class="edit-asset-btn" onclick="KR.openSheet('editAsset',{clienteId:'JARED_IG',rowIndex:${a.rowIndex}})" title="Modifica">✏️</button>
+        </div>
+        ${designHtml ? '<div class="asset-design-toggle" onclick="this.nextElementSibling.classList.toggle(\'open\')">🎨 Palette & Font ▾</div><div class="asset-design-body">' + designHtml + '</div>' : ''}
+      </div>`;
+    }).join('');
+  }
+
+  function personalChangeMonth(delta) {
+    personalMonth += delta;
+    if (personalMonth > 12) { personalMonth = 1;  personalYear++; }
+    if (personalMonth < 1)  { personalMonth = 12; personalYear--; }
+    loadPersonalePED();
+  }
+
+  async function submitPersonalPED() {
+    const prompt = ($('personalPrompt') ? $('personalPrompt').value : '').trim();
+    closeSheet();
+    showToast('Generazione PED in coda…');
+    try {
+      const res = await gas('avviaJaredPED', prompt);
+      if (res && res.ok) {
+        showToast('PED avviato! Pronto in pochi minuti.');
+      } else {
+        showToast('Errore: ' + (res && res.errore || 'sconosciuto'));
+      }
+    } catch (e) { showToast('Errore connessione'); }
+  }
+
+  async function submitPersonalEdit() {
+    const handle = ($('peHandle') ? $('peHandle').value : '').trim();
+    const brief  = ($('peBrief')  ? $('peBrief').value  : '').trim();
+    const target = ($('peTarget') ? $('peTarget').value : '').trim();
+    try {
+      const res = await gas('initJaredPersonalClient', handle || undefined, brief || undefined, target || undefined);
+      if (res && res.ok) {
+        const profile = { inited: true, handle, brief, target };
+        localStorage.setItem('kr_personal_profile', JSON.stringify(profile));
+        _showPersonalMain(profile);
+        closeSheet();
+        showToast('Profilo aggiornato!');
+      } else { showToast('Errore salvataggio'); }
+    } catch (e) { showToast('Errore connessione'); }
+  }
+
+  async function loadPersonalMancanti() {
+    const container = $('personalMancantiList');
+    if (!container) return;
+    try {
+      const res = await gas('getPEDCalendario', 'JARED_IG', personalYear, personalMonth);
+      const mancanti = (res && res.assets || []).filter(a =>
+        a.stato === 'Proposto' || a.stato === 'Da Produrre' || a.stato === 'Bozza'
+      );
+      if (mancanti.length === 0) {
+        container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--accent)">✅ Tutto in ordine — nessun asset mancante!</div>';
+        return;
+      }
+      container.innerHTML = mancanti.map(a =>
+        `<div class="asset-card glass" style="margin-bottom:8px;border-color:rgba(245,158,11,0.3)">
+          <div class="asset-header">
+            <div class="asset-info">
+              <div class="asset-title">${a.titolo || 'Senza titolo'}</div>
+              <div class="asset-status" style="color:var(--a3)">${a.tipo} · ${new Date(a.data).toLocaleDateString('it-IT')}</div>
+            </div>
+            <button class="edit-asset-btn" onclick="KR.closeSheet();KR.openSheet('editAsset',{clienteId:'JARED_IG',rowIndex:${a.rowIndex}})">✏️</button>
+          </div>
+        </div>`
+      ).join('');
+    } catch (e) {
+      container.innerHTML = '<div style="padding:16px;color:var(--red)">Errore caricamento</div>';
+    }
   }
 
   // ── INIT ──
@@ -1971,7 +2215,9 @@ const KR = (() => {
     markNotifRead, markAllNotifRead, openNotifPed, submitVoto,
     openRegenSheet, selectRegen, pickRegenSection, submitRegen,
     generaLinkCliente, loadProduzione, avviaPED,
-    acceptNotif, dismissNotif
+    acceptNotif, dismissNotif,
+    initPersonalClient, loadPersonalePED, personalChangeMonth,
+    submitPersonalPED, submitPersonalEdit, loadPersonalMancanti
   };
 
 })();
