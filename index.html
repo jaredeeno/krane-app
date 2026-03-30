@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#050510">
+<title>Krane AI — Plateau Engine</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<!-- AMBIENT LIGHT + PARTICLES -->
+<div id="ambientLight"><div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div></div>
+<canvas id="particles"></canvas>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-orb lo-1"></div><div class="login-orb lo-2"></div><div class="login-orb lo-3"></div>
+  <div class="login-content">
+    <div class="login-logo">K</div>
+    <div class="login-badge">◆ PLATEAU ENGINE</div>
+    <div class="login-title" id="loginTitleEl">Krane AI</div>
+    <div class="login-claim" id="loginClaimEl">Automazione social intelligente.<br>Due agenti. Un flusso. Zero limiti.</div>
+    <div class="login-studio" id="loginStudioEl">Studio Casella International</div>
+    <div class="login-form" id="loginForm">
+      <input class="login-input" type="text" id="loginUser" placeholder="Username" autocapitalize="none" autocomplete="username">
+      <input class="login-input" type="password" id="loginPass" placeholder="Password" autocomplete="current-password">
+      <button class="login-btn" id="loginBtn" onclick="KR.doLogin()">Accedi</button>
+      <div class="login-error" id="loginError"></div>
+      <div class="login-lockout" id="loginLockout"></div>
+    </div>
+    <div class="login-form" id="changePwForm" style="display:none">
+      <div class="change-pw-info">Primo accesso — scegli la tua password personale</div>
+      <input class="login-input" type="password" id="newPass1" placeholder="Nuova password (min. 6 caratteri)" autocomplete="new-password">
+      <input class="login-input" type="password" id="newPass2" placeholder="Conferma password" autocomplete="new-password">
+      <button class="login-btn" onclick="KR.doChangePassword()">Salva Password</button>
+      <div class="login-error" id="changePwError"></div>
+    </div>
+    <div class="login-footer">
+      <div class="login-footer-line">POWERED BY PLATEAU DUAL-AGENT ENGINE</div>
+      <div class="login-footer-line">v2.0 · 2026</div>
+    </div>
+  </div>
+</div>
+
+<!-- APP CONTAINER -->
+<div class="app-container">
+  <button class="notif-bell" id="notifBell" onclick="KR.openSheet('notifiche')">
+    🔔
+    <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+  </button>
+
+  <div class="page-wrapper">
+
+    <!-- HOME / DASHBOARD -->
+    <div class="page active" id="pageDashboard">
+      <div class="page-header"><h1><span class="greeting-name" id="greetName">—</span></h1><p>Ecco cosa succede oggi nel tuo workspace</p></div>
+      <div class="welcome-banner glass">
+        <div class="wb-glow"></div>
+        <div class="wb-row">
+          <div class="wb-avatar" id="wbAvatar">—</div>
+          <div class="wb-info"><div class="wb-name" id="wbName">—</div><div class="wb-role" id="wbRole">—</div></div>
+        </div>
+        <div class="wb-status"><div class="wb-status-dot"></div><div class="wb-status-text">Workspace attivo · 2 agenti operativi</div></div>
+      </div>
+      <div class="live-ticker glass" id="liveTicker">
+        <div class="lt-dot"></div>
+        <div class="lt-text" id="tickerText"><strong>Sistema</strong> in attesa di nuovi eventi...</div>
+      </div>
+      <div class="stat-grid" id="dashStats">
+        <div class="stat-tile glass green"><div class="stat-icon green">👥</div><div class="stat-value green" id="statClienti">—</div><div class="stat-label">Clienti Attivi</div></div>
+        <div class="stat-tile glass purple"><div class="stat-icon purple">📋</div><div class="stat-value purple" id="statAssets">—</div><div class="stat-label">Asset Totali</div></div>
+        <div class="stat-tile glass pink"><div class="stat-icon pink">🔥</div><div class="stat-value pink" id="statPED">—</div><div class="stat-label">PED Attivi</div></div>
+      </div>
+      <div class="section-row"><div class="section-title" style="margin:0">Feed</div><span class="see-all" onclick="KR.loadMoreFeed()">Aggiorna ›</span></div>
+      <div class="feed-list" id="feedList"><div class="page-loading"><div class="spinner"></div></div></div>
+      <div class="section-row" style="margin-top:16px">
+        <div class="section-title" style="margin:0">🎬 Produzione</div>
+        <span class="see-all" onclick="KR.loadProduzione()">Aggiorna ›</span>
+      </div>
+      <div class="prod-summary glass" id="prodSummary" style="display:none">
+        <div class="prod-stat"><span class="prod-stat-value" id="prodTotale">0</span><span class="prod-stat-label">Da produrre</span></div>
+        <div class="prod-stat overdue"><span class="prod-stat-value" id="prodOverdue">0</span><span class="prod-stat-label">In ritardo</span></div>
+      </div>
+      <div id="prodTaskList">
+        <div class="empty-state" style="padding:16px 0"><div class="empty-state-icon">🎬</div><div class="empty-state-text">Nessun contenuto da produrre</div></div>
+      </div>
+      <div class="section-title">Azioni Rapide</div>
+      <div class="quick-actions">
+        <div class="quick-tile glass admin-only" id="qaNewClient" onclick="KR.nav(1)"><div class="qt-glow" style="background:var(--accent)"></div><div class="qt-icon" style="background:rgba(52,211,153,0.12)">➕</div><div class="qt-label">Nuovo Cliente</div><div class="qt-desc">Registra un nuovo brand</div></div>
+        <div class="quick-tile glass admin-only" id="qaGeneraPED" onclick="KR.openSheet('selectClientePED')"><div class="qt-glow" style="background:var(--a2)"></div><div class="qt-icon" style="background:rgba(167,139,250,0.12)">📋</div><div class="qt-label">Genera PED</div><div class="qt-desc">Scegli cliente e avvia</div></div>
+      </div>
+    </div>
+
+    <!-- CLIENTI -->
+    <div class="page" id="pageClienti">
+      <div class="page-header"><h1>Clienti</h1><p>Gestisci i brand del tuo portfolio</p></div>
+      <div class="search-bar"><span class="search-icon">🔍</span><input class="search-input" id="clientSearch" placeholder="Cerca cliente..." oninput="KR.filterClienti()"></div>
+      <div class="filter-chips" id="clientChips">
+        <button class="chip active" onclick="KR.filterClientiByStatus(this,'tutti')">Tutti</button>
+        <button class="chip" onclick="KR.filterClientiByStatus(this,'attivi')">Attivi</button>
+        <button class="chip" onclick="KR.filterClientiByStatus(this,'archiviati')">Archiviati</button>
+      </div>
+      <div class="client-list" id="clientList"><div class="page-loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- PIANO EDITORIALE -->
+    <div class="page" id="pagePED">
+      <div class="page-header"><h1>Piano Editoriale</h1><p>Contenuti programmati per cliente</p></div>
+      <div class="glass-dropdown">
+        <div class="dd-trigger glass" onclick="KR.togglePEDDropdown()">
+          <span id="pedDdLabel">Seleziona cliente...</span>
+          <span class="dd-arrow" id="pedDdArrow">▼</span>
+        </div>
+        <div class="dd-menu" id="pedDdMenu"></div>
+      </div>
+      <div class="month-selector">
+        <button class="month-arrow" onclick="KR.pedChangeMonth(-1)">‹</button>
+        <div class="month-name" id="pedMonthName">—</div>
+        <button class="month-arrow" onclick="KR.pedChangeMonth(1)">›</button>
+      </div>
+      <div class="cal-grid" id="pedCalGrid"></div>
+      <div class="section-title" id="pedAssetTitle">Contenuti del mese</div>
+      <div id="pedAssetList">
+        <div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">Seleziona un cliente per<br>visualizzare il piano editoriale</div></div>
+      </div>
+    </div>
+
+    <!-- STATISTICHE -->
+    <div class="page" id="pageStats">
+      <div class="page-header"><h1>Statistiche</h1><p>Performance e costi del tuo workspace</p></div>
+      <div class="glass-dropdown">
+        <div class="dd-trigger glass" onclick="KR.toggleStatsDropdown()">
+          <span id="statsDdLabel">Vista Globale</span>
+          <span class="dd-arrow" id="statsDdArrow">▼</span>
+        </div>
+        <div class="dd-menu" id="statsDdMenu">
+          <div class="dd-option selected" onclick="KR.selectStatsClient(this,'')"><div class="dd-dot" style="background:var(--accent)"></div>Vista Globale</div>
+        </div>
+      </div>
+      <div id="statsContent">
+        <div class="chart-card glass">
+          <div class="chart-title">Asset per mese</div>
+          <div class="chart-area" id="statsBarChart"><div class="page-loading"><div class="spinner"></div></div></div>
+        </div>
+        <div class="chart-card glass" style="animation-delay:0.1s">
+          <div class="chart-title">Distribuzione contenuti</div>
+          <div class="donut-container" id="statsDonut"><div class="page-loading"><div class="spinner"></div></div></div>
+        </div>
+        <div class="stat-grid" id="statsOverview">
+          <div class="stat-tile glass green" style="animation-delay:0.2s"><div class="stat-label">Costo API mese</div><div class="stat-value green" id="statsCost">—</div></div>
+          <div class="stat-tile glass purple" style="animation-delay:0.25s"><div class="stat-label">Tasso approvazione</div><div class="stat-value purple" id="statsApproval">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALTRO -->
+    <div class="page" id="pageAltro">
+      <div class="page-header"><h1>Altro</h1><p>Team, agenti, workflow e impostazioni</p></div>
+      <div class="filter-chips" style="margin-bottom:24px" id="altroChips">
+        <button class="chip active" onclick="KR.switchSub(this,'subTeam')">Team</button>
+        <button class="chip" onclick="KR.switchSub(this,'subAgenti')">Agenti</button>
+        <button class="chip" onclick="KR.switchSub(this,'subWorkflow')">Workflow</button>
+        <button class="chip" onclick="KR.switchSub(this,'subSettings')">Settings</button>
+      </div>
+      <div id="subTeam"><div id="teamList"><div class="page-loading"><div class="spinner"></div></div></div></div>
+      <div id="subAgenti" style="display:none">
+        <div class="agent-grid">
+          <div class="agent-full glass">
+            <div class="ag-glow" style="background:var(--accent)"></div>
+            <div class="ag-avatar pika">🐭</div>
+            <div class="ag-info"><div class="ag-name">Pika</div><div class="ag-role">Interprete & Trend Scout</div><div class="ag-desc">Interpreta le richieste, cerca trend su Reddit e Google News, raccoglie reference visive e dati OSINT</div></div>
+            <div class="ag-badge active">Attivo</div>
+          </div>
+          <div class="agent-full glass" style="animation-delay:0.1s">
+            <div class="ag-glow" style="background:var(--a2)"></div>
+            <div class="ag-avatar volpe">🦊</div>
+            <div class="ag-info"><div class="ag-name">Volpe Tibetana</div><div class="ag-role">Storyteller</div><div class="ag-desc">Genera copy, shotlist, prompt Suno via Gemini + Memoria Storica</div></div>
+            <div class="ag-badge active">Attivo</div>
+          </div>
+        </div>
+      </div>
+      <div id="subWorkflow" style="display:none">
+        <div id="workflowJobList"><div class="page-loading"><div class="spinner"></div></div></div>
+        <div class="section-title" style="margin-top:24px">Override Manuale</div>
+        <div class="quick-actions">
+          <div class="quick-tile glass" onclick="KR.openSheet('writeCaption')"><div class="qt-glow" style="background:var(--a2)"></div><div class="qt-icon" style="background:rgba(167,139,250,0.12)">✍️</div><div class="qt-label">Scrivi Caption</div><div class="qt-desc">Sostituisci la Volpe</div></div>
+          <div class="quick-tile glass" onclick="KR.openSheet('insertTrend')"><div class="qt-glow" style="background:var(--a3)"></div><div class="qt-icon" style="background:rgba(245,158,11,0.12)">🔍</div><div class="qt-label">Inserisci Trend</div><div class="qt-desc">Sostituisci Pika</div></div>
+        </div>
+      </div>
+      <div id="subSettings" style="display:none">
+        <div class="settings-group">
+          <div class="settings-group-title">Notifiche</div>
+          <div class="settings-card glass">
+            <div class="settings-row"><div class="settings-label">Suoni</div><div class="toggle on" id="toggleSound" onclick="KR.toggleSetting(this,'sound')"></div></div>
+            <div class="settings-row"><div class="settings-label">Vibrazione</div><div class="toggle on" id="toggleVibrate" onclick="KR.toggleSetting(this,'vibrate')"></div></div>
+            <div class="settings-row"><div class="settings-label">Polling</div><div class="settings-value">8 secondi</div></div>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-group-title">Sistema</div>
+          <div class="settings-card glass">
+            <div class="settings-row"><div class="settings-label">Modello AI</div><div class="settings-value">gemini-2.5-flash</div></div>
+            <div class="settings-row"><div class="settings-label">Versione</div><div class="settings-value">2.0.0</div></div>
+            <div class="settings-row"><div class="settings-label">Stato API</div><div class="settings-value" id="apiStatus" style="color:var(--accent)">● Connesso</div></div>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-group-title">Account</div>
+          <div class="settings-card glass">
+            <div class="settings-row" id="changePwRow" onclick="KR.openSheet('changePw')"><div class="settings-label">Cambia Password</div><div class="client-arrow">›</div></div>
+            <div class="settings-row" onclick="KR.doLogout()" style="color:var(--red)"><div class="settings-label" style="color:var(--red)">Logout</div><div class="client-arrow" style="color:var(--red)">›</div></div>
+          </div>
+        </div>
+        <div class="settings-group admin-section" id="adminSection" style="display:none">
+          <div class="settings-group-title">Gestione Utenti (Admin)</div>
+          <div class="admin-btn" onclick="KR.openSheet('resetPw')"><div class="ab-icon" style="background:rgba(245,158,11,0.12)">🔑</div>Resetta password utente</div>
+          <div class="admin-btn" onclick="KR.openSheet('addUser')"><div class="ab-icon" style="background:rgba(52,211,153,0.12)">👤</div>Aggiungi nuovo utente</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-wrapper -->
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="KR.nav(0)"><span class="nav-icon nav-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg></span><span class="nav-label">Home</span></button>
+    <button class="nav-item" onclick="KR.nav(1)"><span class="nav-icon nav-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></span><span class="nav-label">Clienti</span></button>
+    <button class="nav-item" onclick="KR.nav(2)"><span class="nav-icon nav-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></span><span class="nav-label">PED</span></button>
+    <button class="nav-item" onclick="KR.nav(3)"><span class="nav-icon nav-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></span><span class="nav-label">Stats</span></button>
+    <button class="nav-item" onclick="KR.nav(4)"><span class="nav-icon nav-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="nav-label">Altro</span></button>
+  </nav>
+</div>
+
+<!-- BOTTOM SHEET -->
+<div class="sheet-overlay" id="sheetOverlay" onclick="KR.closeSheet()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div id="sheetContent"></div>
+  </div>
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fab" style="display:none" onclick="KR.openSheet('newClient')">+</button>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- BANNER NOTIFICHE -->
+<div class="notif-prompt glass" id="notifPrompt" style="display:none">
+  <div class="np-icon">🔔</div>
+  <div class="np-text">Vuoi ricevere notifiche?</div>
+  <div class="np-actions">
+    <button class="np-btn np-yes" onclick="KR.acceptNotif()">Attiva</button>
+    <button class="np-btn np-no" onclick="KR.dismissNotif()">No grazie</button>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
