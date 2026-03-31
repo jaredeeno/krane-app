@@ -2206,13 +2206,14 @@ const KR = (() => {
   }
 
   async function richiediPDFPersonale() {
-    showToast('PDF in generazione…');
+    showToast('Generazione PDF in corso… (30-60s)');
     try {
       const res = await gas('generaPDFPersonale');
-      if (res && res.ok) {
-        showToast('📄 PDF pronto — controlla Telegram!');
+      if (res && res.ok && res.pdfUrl) {
+        showToast('📄 PDF pronto! Apertura...');
+        window.open(res.pdfUrl, '_blank');
       } else {
-        showToast('Errore PDF: ' + (res && res.errore || 'sconosciuto'));
+        showToast('Errore: ' + (res && res.errore || 'sconosciuto'));
       }
     } catch (e) { showToast('Errore connessione'); }
   }
