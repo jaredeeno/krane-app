@@ -53,14 +53,42 @@ const KR = (() => {
     return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
-  // ── API wrapper — fetch verso GAS (sostituisce google.script.run) ──
+  // ── API wrapper — fetch verso GAS con timeout 12s e cache localStorage ──
+  const _gasCache = {};
+  const _GAS_CACHE_TTL = 3 * 60 * 1000; // 3 minuti
+  // Funzioni cacheable (lettura pura, non modificano dati)
+  const _CACHEABLE = new Set(['getClientiAttivi','getStats','getTeamMembers','getStatisticheGlobali','getFeedRecent']);
+
   async function gas(fn, ...args) {
     const params = new URLSearchParams({ action: fn });
     if (sessionToken) params.set('token', sessionToken);
     args.forEach((a, i) => params.set(`a${i}`, a === null || a === undefined ? '' : typeof a === 'object' ? JSON.stringify(a) : String(a)));
-    const res = await fetch(`${GAS_API_URL}?${params}`, { redirect: 'follow' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    const cacheKey = fn + '|' + args.join('|');
+
+    // Leggi dalla cache se disponibile e fresca
+    if (_CACHEABLE.has(fn) && _gasCache[cacheKey] && Date.now() - _gasCache[cacheKey].ts < _GAS_CACHE_TTL) {
+      return _gasCache[cacheKey].data;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    try {
+      const res = await fetch(`${GAS_API_URL}?${params}`, { redirect: 'follow', signal: controller.signal });
+      clearTimeout(timeout);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (_CACHEABLE.has(fn)) _gasCache[cacheKey] = { data, ts: Date.now() };
+      return data;
+    } catch (e) {
+      clearTimeout(timeout);
+      if (e.name === 'AbortError') throw new Error('Timeout — GAS non risponde. Riprova.');
+      throw e;
+    }
+  }
+
+  // Invalida la cache per una funzione specifica (chiamare dopo scritture)
+  function _invalidateCache(fn) {
+    Object.keys(_gasCache).forEach(k => { if (k.startsWith(fn + '|') || k === fn + '|') delete _gasCache[k]; });
   }
 
   // ── PARTICLES ──
@@ -617,7 +645,7 @@ const KR = (() => {
       allClienti = list || [];
       renderClienti(allClienti);
     } catch (e) {
-      $('clientList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">❌</div><div class="empty-state-text">Errore nel caricamento clienti</div></div>';
+      $('clientList').innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚡</div><div class="empty-state-text">${e.message || 'Errore caricamento'}<br><span class="see-all" onclick="KR.loadClienti()" style="cursor:pointer">↺ Riprova</span></div></div>`;
     }
   }
 
