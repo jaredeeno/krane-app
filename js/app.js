@@ -1997,13 +1997,21 @@ const KR = (() => {
   // ══════════════════════════════════════════════════════════
 
   async function loadPersonale() {
-    // Prima volta — controlla se JARED_IG esiste già nel GAS
-    const profile = JSON.parse(localStorage.getItem('kr_personal_profile') || '{}');
-    if (profile.inited) {
-      _showPersonalMain(profile);
-      loadPersonalePED();
-    } else {
-      // Mostra il form di setup
+    // Controlla sempre il backend — localStorage può svuotarsi (reinstall PWA)
+    try {
+      const res = await gas('getClienteDetail', 'JARED_IG');
+      if (res && res.ok && res.cliente) {
+        const c = res.cliente;
+        // Ricostruisce localStorage dal backend
+        const profile = { inited: true, handle: c.nome, brief: c.brief, target: c.target };
+        localStorage.setItem('kr_personal_profile', JSON.stringify(profile));
+        _showPersonalMain(profile);
+        loadPersonalePED();
+      } else {
+        $('personalSetup').style.display = 'block';
+        $('personalMain').style.display  = 'none';
+      }
+    } catch (e) {
       $('personalSetup').style.display = 'block';
       $('personalMain').style.display  = 'none';
     }
