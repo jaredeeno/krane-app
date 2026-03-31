@@ -126,7 +126,8 @@ const KR = (() => {
     if (n === 2) loadPED();
     if (n === 3) loadStats();
     if (n === 4) loadTeam();
-    if (n === 5) loadPersonale();
+    if (n === 5) { loadPersonale(); _startPersonalePolling(); }
+    if (n !== 5) _stopPersonalePolling();
   }
 
   function switchSub(chip, showId) {
@@ -2159,6 +2160,63 @@ const KR = (() => {
     } catch (e) { showToast('Errore connessione'); }
   }
 
+  // ── Auto-refresh e log live della pagina personale ──────────────────────────
+  let _personalPollTimer   = null;
+  let _personalLogTimer    = null;
+  let _personalRefreshSecs = 15; // secondi tra un refresh asset e l'altro
+
+  function _startPersonalePolling() {
+    _stopPersonalePolling();
+    // Refresh asset ogni 15s mentre si è sulla pagina
+    _personalPollTimer = setInterval(() => {
+      const profile = JSON.parse(localStorage.getItem('kr_personal_profile') || '{}');
+      if (profile.inited) loadPersonalePED();
+    }, _personalRefreshSecs * 1000);
+    // Log live ogni 8s
+    _personalLogTimer = setInterval(_refreshLogs, 8000);
+    _refreshLogs(); // primo carico immediato
+  }
+
+  function _stopPersonalePolling() {
+    if (_personalPollTimer) { clearInterval(_personalPollTimer); _personalPollTimer = null; }
+    if (_personalLogTimer)  { clearInterval(_personalLogTimer);  _personalLogTimer  = null; }
+  }
+
+  async function _refreshLogs() {
+    const container = $('personalLogList');
+    if (!container) return;
+    try {
+      const logs = await gas('getLogs');
+      if (!Array.isArray(logs) || logs.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted)">Nessun log disponibile</div>';
+        return;
+      }
+      const levelColor = { 'SYS': 'var(--accent)', 'ERRORE': '#f87171', 'WARN': 'var(--a3)', 'INFO': 'var(--a2)' };
+      container.innerHTML = logs.slice(0, 30).map(l => {
+        const ts  = l.ts ? new Date(l.ts).toLocaleTimeString('it-IT') : '—';
+        const col = levelColor[l.level] || 'var(--text-muted)';
+        const job = l.jobId ? `<span style="color:var(--text-muted)"> [${l.jobId}]</span>` : '';
+        return `<div style="margin-bottom:2px"><span style="color:var(--text-muted)">${ts}</span> <span style="color:${col};font-weight:600">${l.level}</span> ${l.msg}${job}</div>`;
+      }).join('');
+      // Scroll in cima (i log sono già in ordine inverso — il più recente è il primo)
+      container.scrollTop = 0;
+    } catch (e) {
+      if (container) container.innerHTML = '<div style="color:#f87171">Errore caricamento log</div>';
+    }
+  }
+
+  async function richiediPDFPersonale() {
+    showToast('PDF in generazione…');
+    try {
+      const res = await gas('generaPDFPersonale');
+      if (res && res.ok) {
+        showToast('📄 PDF pronto — controlla Telegram!');
+      } else {
+        showToast('Errore PDF: ' + (res && res.errore || 'sconosciuto'));
+      }
+    } catch (e) { showToast('Errore connessione'); }
+  }
+
   async function loadPersonalMancanti() {
     const container = $('personalMancantiList');
     if (!container) return;
@@ -2217,7 +2275,7 @@ const KR = (() => {
     generaLinkCliente, loadProduzione, avviaPED,
     acceptNotif, dismissNotif,
     initPersonalClient, loadPersonalePED, personalChangeMonth,
-    submitPersonalPED, submitPersonalEdit, loadPersonalMancanti
+    submitPersonalPED, submitPersonalEdit, loadPersonalMancanti, richiediPDFPersonale
   };
 
 })();

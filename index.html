@@ -312,14 +312,31 @@
           </div>
         </div>
 
+        <!-- Bottone PDF -->
+        <button class="sheet-btn" style="background:linear-gradient(135deg,#e1306c,#fd7925);margin:16px 0 0;width:100%" onclick="KR.richiediPDFPersonale()">📄 Genera Masterplan PDF</button>
+
         <!-- Asset list -->
         <div class="section-row" style="margin-top:20px">
           <div class="section-title" style="margin:0">Contenuti del mese</div>
-          <span class="see-all" onclick="KR.loadPersonalePED()">Aggiorna ›</span>
+          <span class="see-all" onclick="KR.loadPersonalePED()">↺ Aggiorna</span>
         </div>
         <div id="personalAssetList">
           <div class="empty-state"><div class="empty-state-icon">📸</div><div class="empty-state-text">Nessun PED generato<br>per questo mese</div></div>
         </div>
+
+        <!-- Live Log Panel -->
+        <div style="margin-top:24px">
+          <div class="section-row">
+            <div class="section-title" style="margin:0">🖥️ Log Sistema</div>
+            <span class="see-all" id="logAutoLabel" style="color:var(--accent)">● Live</span>
+          </div>
+          <div class="glass" style="padding:12px;border-radius:16px;margin-top:8px">
+            <div id="personalLogList" style="font-family:monospace;font-size:11px;line-height:1.7;max-height:220px;overflow-y:auto">
+              <div style="color:var(--text-muted)">In attesa dei log…</div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
