@@ -2214,12 +2214,22 @@ const KR = (() => {
   }
 
   async function richiediPDFPersonale() {
-    showToast('Generazione PDF in corso… (30-60s)');
+    showToast('Recupero link…');
     try {
       const res = await gas('generaPDFPersonale');
       if (res && res.ok && res.pdfUrl) {
-        showToast('📄 PDF pronto! Apertura...');
-        window.open(res.pdfUrl, '_blank');
+        // Mostra bottom sheet con i due link
+        const sc = $('sheetContent');
+        sc.innerHTML = `
+          <div class="sheet-title">📄 Il tuo Masterplan</div>
+          <div class="sheet-subtitle">Il PED è pronto — scegli come aprirlo</div>
+          <a href="${res.pdfUrl}" target="_blank" style="display:block;margin-bottom:12px">
+            <button class="sheet-btn" style="background:linear-gradient(135deg,#e1306c,#fd7925);width:100%">⬇️ Scarica PDF</button>
+          </a>
+          <a href="${res.slidesUrl}" target="_blank">
+            <button class="sheet-btn" style="width:100%">🎞️ Apri Presentazione Google Slides</button>
+          </a>`;
+        $('sheetOverlay').classList.add('open');
       } else {
         showToast('Errore: ' + (res && res.errore || 'sconosciuto'));
       }
