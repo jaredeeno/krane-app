@@ -162,42 +162,59 @@ const KR = (() => {
   }
 
   async function initAuth() {
-    // 1. Prova sessione salvata (token in localStorage — dura 6 mesi)
     const savedToken = localStorage.getItem('kr_token');
+    const savedUser  = JSON.parse(localStorage.getItem('kr_user') || 'null');
+
+    // 1. Sessione in cache — entra subito, verifica in background
+    if (savedToken && savedUser) {
+      sessionToken = savedToken;
+      currentUser  = savedUser;
+      enterApp();
+      // Verifica silente: cancella solo se GAS dice esplicitamente che il token è scaduto
+      gas('authVerifySession', savedToken).then(res => {
+        if (res && !res.ok) {
+          // Token scaduto lato server — forza logout pulito
+          localStorage.removeItem('kr_token');
+          localStorage.removeItem('kr_user');
+          location.reload();
+        }
+      }).catch(() => { /* rete non disponibile — mantieni la sessione */ });
+      return;
+    }
+
+    // 2. Token senza dati utente — verifica sincrona
     if (savedToken) {
       try {
         const res = await gas('authVerifySession', savedToken);
         if (res && res.ok) {
           sessionToken = savedToken;
-          currentUser = { username: res.username, nome: res.nome, role: res.role };
+          currentUser  = { username: res.username, nome: res.nome, role: res.role };
+          localStorage.setItem('kr_user', JSON.stringify(currentUser));
           enterApp();
           return;
         }
-      } catch (e) {
-        console.warn('Session verify failed:', e);
-      }
-      localStorage.removeItem('kr_token');
+        localStorage.removeItem('kr_token');
+      } catch (e) { console.warn('Session verify failed:', e); }
     }
 
-    // 2. Prova login biometrico (Face ID / impronta) dal portachiavi
+    // 3. Prova Face ID / impronta dal portachiavi
     const stored = await _getStoredCredential();
     if (stored && stored.username && stored.password) {
       try {
         const hash = await sha256(stored.password);
-        const res = await gas('authLogin', stored.username, hash);
+        const res  = await gas('authLogin', stored.username, hash);
         if (res && res.ok && !res.firstLogin) {
           sessionToken = res.token;
+          currentUser  = { username: res.username, nome: res.nome, role: res.role };
           localStorage.setItem('kr_token', res.token);
-          currentUser = { username: res.username, nome: res.nome, role: res.role };
+          localStorage.setItem('kr_user', JSON.stringify(currentUser));
           enterApp();
           return;
         }
-      } catch (e) {
-        console.warn('Biometric login failed:', e);
-      }
+      } catch (e) { console.warn('Biometric login failed:', e); }
     }
 
-    // 3. Nessuna sessione — mostra login manuale
+    // 4. Nessuna sessione — login manuale
     $('loginOverlay').classList.remove('hidden');
   }
 
@@ -235,8 +252,9 @@ const KR = (() => {
       }
       loginAttempts = 0;
       sessionToken = res.token;
+      currentUser  = { username: res.username, nome: res.nome, role: res.role };
       localStorage.setItem('kr_token', res.token);
-      currentUser = { username: res.username, nome: res.nome, role: res.role };
+      localStorage.setItem('kr_user', JSON.stringify(currentUser));
 
       // Salva nel portachiavi per Face ID / impronta al prossimo accesso
       await _storeCredential(u, p);
@@ -335,6 +353,7 @@ const KR = (() => {
 
   function doLogout() {
     localStorage.removeItem('kr_token');
+    localStorage.removeItem('kr_user');
     sessionToken = null;
     currentUser = null;
     if (feedPollInterval) clearInterval(feedPollInterval);
