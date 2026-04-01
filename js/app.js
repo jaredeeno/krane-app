@@ -935,7 +935,7 @@ const KR = (() => {
       container.innerHTML = list.map((c, i) => {
         const col = colors[i % 4];
         const initials = (c.nome || '??').substring(0, 2).toUpperCase();
-        return `<div class="ped-client-btn glass" onclick="KR.avviaPED('${c.id}','${(c.nome || '').replace(/'/g,'')}')" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;margin-bottom:8px;cursor:pointer;border:1px solid var(--glass-border);transition:all 0.2s">
+        return `<div class="ped-client-btn glass" onclick="KR.avviaPED('${c.id}','${(c.nome || '').replace(/'/g,'&#39;')}')" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;margin-bottom:8px;cursor:pointer;border:1px solid var(--glass-border);transition:all 0.2s">
           <div style="width:40px;height:40px;border-radius:12px;background:${col};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0">${initials}</div>
           <div style="flex:1;min-width:0">
             <div style="font-weight:600;font-size:14px;color:var(--text)">${c.nome}</div>

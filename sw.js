@@ -48,7 +48,7 @@ self.addEventListener('notificationclick', e => {
   e.waitUntil(
     clients.matchAll({ type: 'window' }).then(cls => {
       if (cls.length) return cls[0].focus();
-      return clients.openWindow('/');
+      return clients.openWindow('/krane-app/');
     })
   );
 });
