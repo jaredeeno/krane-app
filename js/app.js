@@ -10,7 +10,22 @@ const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzJpKUtSCtOewTsRkOa
 // ── Service Worker (ora funziona perché siamo su GitHub Pages) ──
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js')
-    .then(() => console.log('[SW] Registrato'))
+    .then(reg => {
+      console.log('[SW] Registrato');
+      // Invia config Firebase al SW per push in background
+      const cfgEl = document.querySelector('meta[name="firebase-config"]');
+      if (cfgEl && reg.active) {
+        reg.active.postMessage({ type: 'FIREBASE_CONFIG', config: JSON.parse(cfgEl.content) });
+      }
+      // Se il SW è ancora in fase di installazione, aspetta che sia attivo
+      if (reg.installing) {
+        reg.installing.addEventListener('statechange', function() {
+          if (this.state === 'activated' && cfgEl) {
+            this.postMessage({ type: 'FIREBASE_CONFIG', config: JSON.parse(cfgEl.content) });
+          }
+        });
+      }
+    })
     .catch(e => console.warn('[SW] Errore registrazione:', e.message));
 }
 
@@ -26,6 +41,7 @@ const KR = (() => {
   let lockoutUntil = 0;
   let lastFeedTimestamp = '';
   let feedPollInterval = null;
+  let _notifPollInterval = null;
   let pedMonth = new Date().getMonth() + 1;
   let pedYear = new Date().getFullYear();
   let pedSelectedClient = '';
@@ -108,12 +124,22 @@ const KR = (() => {
         c: ['52,211,153', '167,139,250', '244,114,182', '245,158,11'][Math.floor(Math.random() * 4)]
       };
     }
-    for (let i = 0; i < 15; i++) pts.push(cP());
+    const isMobile = window.innerWidth < 768;
+    const particleCount = isMobile ? 6 : 15;
+    for (let i = 0; i < particleCount; i++) pts.push(cP());
     let _pFrame = 0;
+    let _pRunning = true;
+    // Ferma animazione in background per risparmiare batteria
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { _pRunning = false; }
+      else { _pRunning = true; requestAnimationFrame(dP); }
+    });
     function dP() {
+      if (!_pRunning) return;
       _pFrame++;
-      // Disegna ogni 2 frame per risparmiare CPU su mobile
-      if (_pFrame % 2 === 0) {
+      // Disegna ogni 3 frame su mobile, ogni 2 su desktop
+      const skip = isMobile ? 3 : 2;
+      if (_pFrame % skip === 0) {
         cx.clearRect(0, 0, cv.width, cv.height);
         pts.forEach(p => {
           p.x += p.vx; p.y += p.vy;
@@ -373,10 +399,31 @@ const KR = (() => {
     startFeedPolling();
     // Avvia polling notifiche
     pollNotifiche();
-    setInterval(pollNotifiche, 10000);
+    _notifPollInterval = setInterval(pollNotifiche, 15000);
 
     // Mostra banner notifiche se il permesso non è ancora stato dato (iOS richiede gesto utente)
     setTimeout(_showNotifPrompt, 1500);
+
+    // Se il permesso push è già granted, registra FCM token silenziosamente
+    if ('Notification' in window && Notification.permission === 'granted') {
+      setTimeout(_initFCMPush, 3000);
+    }
+
+    // ── Performance: ferma polling quando l'app è in background ──
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (feedPollInterval) { clearInterval(feedPollInterval); feedPollInterval = null; }
+        if (_notifPollInterval) { clearInterval(_notifPollInterval); _notifPollInterval = null; }
+      } else {
+        // Riprendi polling quando l'app torna in primo piano
+        pollNotifiche();
+        _notifPollInterval = setInterval(pollNotifiche, 15000);
+        startFeedPolling();
+      }
+    });
+
+    // Admin: carica team status nella dashboard
+    if (isAdmin) _loadTeamStatus();
   }
 
   function doLogout() {
@@ -451,27 +498,65 @@ const KR = (() => {
     }
 
     try {
-      // iOS richiede che il Service Worker sia attivo prima di requestPermission
-      if ('serviceWorker' in navigator) {
-        await Promise.race([
-          navigator.serviceWorker.ready,
-          new Promise(r => setTimeout(r, 3000)) // timeout 3s — non bloccare
-        ]);
-      }
-
       const result = await Notification.requestPermission();
+      console.log('[NOTIF] Permission result:', result);
       if (result === 'granted') {
         showToast('Notifiche attivate!');
-        // Mostra notifica di test tramite SW (richiesto da iOS)
-        if ('serviceWorker' in navigator) {
-          const reg = await navigator.serviceWorker.ready;
-          reg.showNotification('Krane AI', { body: 'Le notifiche funzionano!', icon: './icons/icon-192.png' });
-        }
+        // Registra FCM push token per notifiche lockscreen
+        _initFCMPush();
       } else if (result === 'denied') {
-        showToast('Permesso negato — vai su Impostazioni > App > Krane AI > Notifiche');
+        showToast('Permesso negato — vai in Impostazioni > Notifiche per riattivarlo');
+      } else {
+        showToast('Permesso non concesso');
       }
     } catch (e) {
-      showToast('Errore: ' + e.message);
+      console.warn('[NOTIF] Error:', e);
+      showToast('Errore nella richiesta permesso');
+    }
+  }
+
+  // ── Firebase Cloud Messaging — push reali su lockscreen ──
+  async function _initFCMPush() {
+    try {
+      if (typeof firebase === 'undefined' || !firebase.messaging) {
+        console.warn('[FCM] Firebase SDK non caricato');
+        return;
+      }
+      // Legge la config Firebase da un tag meta
+      const cfgEl = document.querySelector('meta[name="firebase-config"]');
+      if (!cfgEl) { console.warn('[FCM] Nessuna firebase-config trovata'); return; }
+      const fbConfig = JSON.parse(cfgEl.content);
+
+      // Inizializza Firebase (solo se non già fatto)
+      if (!firebase.apps.length) firebase.initializeApp(fbConfig);
+      const messaging = firebase.messaging();
+
+      // Attendi che il SW sia pronto
+      let swReg = await navigator.serviceWorker.getRegistration();
+      if (!swReg) { console.warn('[FCM] Nessun service worker registrato'); return; }
+
+      // Ottieni FCM token
+      const vapidKey = fbConfig.vapidKey || '';
+      const token = await messaging.getToken({
+        vapidKey: vapidKey,
+        serviceWorkerRegistration: swReg
+      });
+
+      if (token && currentUser) {
+        console.log('[FCM] Token ottenuto, salvo sul server');
+        await gas('savePushToken', currentUser.username, token);
+        showToast('Push notification attive!');
+      }
+
+      // Gestisci notifiche in foreground
+      messaging.onMessage((payload) => {
+        console.log('[FCM] Foreground message:', payload);
+        const n = payload.notification || {};
+        showToast(n.title ? (n.title + ': ' + (n.body || '')) : 'Nuova notifica');
+        pollNotifiche();
+      });
+    } catch (e) {
+      console.warn('[FCM] Init error:', e.message || e);
     }
   }
 
@@ -487,6 +572,41 @@ const KR = (() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
+  }
+
+  // ── TEAM STATUS (admin only) ──
+  async function _loadTeamStatus() {
+    try {
+      const res = await gas('getTeamStatus');
+      if (!res || !res.ok) return;
+      const container = $('teamStatusPanel');
+      if (!container) return;
+      const now = Date.now();
+      let html = '<div class="section-title" style="margin-bottom:8px">TEAM</div>';
+      res.members.forEach(m => {
+        const dot = m.online ? '🟢' : '⚫';
+        let statusText = '';
+        if (m.online) {
+          statusText = 'Online';
+        } else if (m.lastSeen) {
+          const ago = now - new Date(m.lastSeen).getTime();
+          const minAgo = Math.floor(ago / 60000);
+          if (minAgo < 60) statusText = minAgo + ' min fa';
+          else if (minAgo < 1440) statusText = Math.floor(minAgo / 60) + ' ore fa';
+          else statusText = Math.floor(minAgo / 1440) + ' gg fa';
+        } else {
+          statusText = 'Mai connesso';
+        }
+        const onlineCls = m.online ? 'color:var(--accent)' : 'color:var(--text-dim)';
+        html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+          <span style="font-size:10px">${dot}</span>
+          <span style="flex:1;font-size:13px;font-weight:500">${m.nome}</span>
+          <span style="font-size:11px;${onlineCls}">${statusText}</span>
+        </div>`;
+      });
+      container.innerHTML = html;
+      container.style.display = 'block';
+    } catch (e) { console.warn('_loadTeamStatus error:', e); }
   }
 
   // ── DASHBOARD ──
@@ -619,7 +739,7 @@ const KR = (() => {
           showToast('Nuovo evento nel feed');
         }
       } catch (e) { /* silenzio su errori polling */ }
-    }, 8000);
+    }, 15000);
   }
 
   function loadMoreFeed() {
@@ -2014,18 +2134,22 @@ const KR = (() => {
         break;
 
       case 'personalEditClient':
-        html = `<div class="sheet-title">⚙️ Modifica Profilo IG</div>
+        html = `<div class="sheet-title">Modifica Profilo IG</div>
         <div class="sheet-subtitle">Aggiorna le info del tuo account personale</div>
         <input class="sheet-input" id="peHandle" placeholder="@username Instagram">
         <textarea class="sheet-textarea" id="peBrief" placeholder="Brief personale..." style="height:100px"></textarea>
         <input class="sheet-input" id="peTarget" placeholder="Target (es. 25-35, design, tech)">
-        <button class="sheet-btn" style="background:linear-gradient(135deg,#e1306c,#fd7925)" onclick="KR.submitPersonalEdit()">Salva ›</button>`;
-        setTimeout(() => {
-          const h = $('peHandle'); const b = $('peBrief'); const t = $('peTarget');
-          const s = JSON.parse(localStorage.getItem('kr_personal_profile') || '{}');
-          if (h && s.handle) h.value = s.handle;
-          if (b && s.brief)  b.value = s.brief;
-          if (t && s.target) t.value = s.target;
+        <button class="sheet-btn" style="background:linear-gradient(135deg,#e1306c,#fd7925)" onclick="KR.submitPersonalEdit()">Salva</button>`;
+        setTimeout(async () => {
+          try {
+            const res = await gas('getJaredProfile');
+            if (res && res.ok && res.profile) {
+              const p = res.profile;
+              if ($('peHandle')) $('peHandle').value = p.handle || '';
+              if ($('peBrief'))  $('peBrief').value  = p.brief || '';
+              if ($('peTarget')) $('peTarget').value  = p.target || '';
+            }
+          } catch (_) {}
         }, 80);
         break;
     }
@@ -2080,15 +2204,22 @@ const KR = (() => {
     const brief  = ($('personalBrief').value  || '').trim();
     const target = ($('personalTarget').value || '').trim();
     if (!handle) { showToast('Inserisci il tuo @username IG'); return; }
-    showToast('Configurazione in corso…');
+    if (!brief)  { showToast('Scrivi un brief per la Volpe'); return; }
+    showToast('Configurazione in corso...');
     try {
       const res = await gas('initJaredPersonalClient', handle, brief, target);
       if (!res || !res.ok) { showToast('Errore: ' + (res && res.errore || 'sconosciuto')); return; }
       const profile = { inited: true, handle, brief, target };
       localStorage.setItem('kr_personal_profile', JSON.stringify(profile));
       _showPersonalMain(profile);
-      loadPersonalePED();
-      showToast('Account configurato!');
+      showToast('Account configurato! Genero il primo PED...');
+      // Auto-genera il primo PED subito dopo la configurazione
+      const pedRes = await gas('avviaJaredPED', '');
+      if (pedRes && pedRes.ok) {
+        showToast('PED in coda! Riceverai una notifica quando pronto.');
+      } else {
+        showToast('PED non avviato: ' + (pedRes && pedRes.errore || 'riprova'));
+      }
     } catch (e) { showToast('Errore connessione'); }
   }
 
@@ -2340,7 +2471,7 @@ const KR = (() => {
     openRegenSheet, selectRegen, pickRegenSection, submitRegen,
     generaLinkCliente, loadProduzione, avviaPED,
     acceptNotif, dismissNotif,
-    initPersonalClient, loadPersonalePED, personalChangeMonth,
+    loadPersonale, initPersonalClient, loadPersonalePED, personalChangeMonth,
     submitPersonalPED, submitPersonalEdit, loadPersonalMancanti, richiediPDFPersonale
   };
 

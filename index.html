@@ -11,6 +11,7 @@
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./css/style.css">
+<meta name="firebase-config" content='{"apiKey":"AIzaSyARQaX-j5eQ4DI-YOSwXZVx7jncTr0w5Tk","authDomain":"krane-ai.firebaseapp.com","projectId":"krane-ai","storageBucket":"krane-ai.firebasestorage.app","messagingSenderId":"382408679797","appId":"1:382408679797:web:41a95776c27cbe0343f33c","vapidKey":"BCgjenoZMYFGXYjaY-42A3I1jx3-rJdoh-_T2xQVHjyUE9V4oNsgdRQRh0_vUDxyBXNq_RRJI5A78Jps6D7xf9M"}'>
 </head>
 <body>
 
@@ -90,6 +91,7 @@
       <div id="prodTaskList">
         <div class="empty-state" style="padding:16px 0"><div class="empty-state-icon">🎬</div><div class="empty-state-text">Nessun contenuto da produrre</div></div>
       </div>
+      <div class="glass" id="teamStatusPanel" style="display:none;padding:16px;border-radius:16px;margin-bottom:16px"></div>
       <div class="section-title">Azioni Rapide</div>
       <div class="quick-actions">
         <div class="quick-tile glass admin-only" id="qaNewClient" onclick="KR.nav(1)"><div class="qt-glow" style="background:var(--accent)"></div><div class="qt-icon" style="background:rgba(52,211,153,0.12)">➕</div><div class="qt-label">Nuovo Cliente</div><div class="qt-desc">Registra un nuovo brand</div></div>
@@ -381,6 +383,8 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-messaging-compat.js"></script>
 <script src="./js/app.js"></script>
 </body>
 </html>
