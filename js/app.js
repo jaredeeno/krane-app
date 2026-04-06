@@ -364,8 +364,12 @@ const KR = (() => {
     $('wbRole').textContent = currentUser.role;
     const _ov = $('loginOverlay');
     _ov.classList.add('hidden');
-    _ov.inert = true; // impedisce a iOS di focus/autofill campi password nascosti
-    if (document.activeElement) document.activeElement.blur(); // chiude tastiera
+    _ov.inert = true;
+    if (document.activeElement) document.activeElement.blur();
+    // Rimuovi fisicamente dal DOM dopo la transizione (700ms = 0.6s animazione + margine)
+    // iOS non può proporre credenziali per campi che non esistono nel DOM
+    // Sicuro: doLogout() fa location.reload(), quindi il form ricompare alla prossima sessione
+    setTimeout(() => { if (_ov && _ov.parentNode) _ov.remove(); }, 700);
 
     // ── Permessi per ruolo ──
     isAdmin = currentUser.role === 'Admin';

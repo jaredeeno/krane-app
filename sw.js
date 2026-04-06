@@ -27,7 +27,7 @@ self.addEventListener('message', e => {
   }
 });
 
-const CACHE_NAME = 'krane-v7';
+const CACHE_NAME = 'krane-v8';
 const CACHE_ASSETS = ['./', './index.html', './css/style.css', './js/app.js', './manifest.json'];
 
 self.addEventListener('install', e => {
