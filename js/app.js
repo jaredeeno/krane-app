@@ -213,7 +213,7 @@ const KR = (() => {
   async function _getStoredCredential() {
     try {
       if (!window.PasswordCredential) return null;
-      const cred = await navigator.credentials.get({ password: true, mediation: 'optional' });
+      const cred = await navigator.credentials.get({ password: true, mediation: 'silent' });
       if (cred && cred.type === 'password') return { username: cred.id, password: cred.password };
     } catch (e) { /* silenzioso */ }
     return null;
