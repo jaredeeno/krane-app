@@ -159,6 +159,10 @@ const KR = (() => {
   let _navItems = null;
   let _pageDoms = null;
   let _currentPage = 0;
+  // TTL guard: evita reload su ogni tap se i dati sono già freschi (5 min)
+  const _PAGE_TTL = 5 * 60 * 1000;
+  let _statsLoadedAt = 0;
+  let _teamLoadedAt = 0;
   // Stato pagina personale
   let personalMonth = new Date().getMonth() + 1;
   let personalYear  = new Date().getFullYear();
@@ -175,11 +179,11 @@ const KR = (() => {
     const fabEl = $('fab');
     fabEl.style.display = (n === 1 && !fabEl.getAttribute('data-hidden-role')) ? 'flex' : 'none';
     haptic();
-    // Lazy load data per pagina
+    // Lazy load data per pagina (con TTL guard per stats/team)
     if (n === 1 && allClienti.length === 0) loadClienti();
     if (n === 2) loadPED();
-    if (n === 3) loadStats();
-    if (n === 4) loadTeam();
+    if (n === 3 && Date.now() - _statsLoadedAt > _PAGE_TTL) { _statsLoadedAt = Date.now(); loadStats(); }
+    if (n === 4 && Date.now() - _teamLoadedAt > _PAGE_TTL) { _teamLoadedAt = Date.now(); loadTeam(); }
     if (n === 5) { loadPersonale(); _startPersonalePolling(); }
     if (n !== 5) _stopPersonalePolling();
   }
@@ -396,6 +400,8 @@ const KR = (() => {
     showToast(saluto);
 
     loadDashboard();
+    // Pre-fetch clienti silenziosamente → PED e Clienti tab saranno istantanei
+    gas('getClientiAttivi').then(list => { if (list) allClienti = list; }).catch(() => {});
     startFeedPolling();
     // Avvia polling notifiche
     pollNotifiche();
@@ -611,18 +617,17 @@ const KR = (() => {
 
   // ── DASHBOARD ──
   async function loadDashboard() {
-    try {
-      const stats = await gas('getStats');
-      if (stats) {
-        $('statClienti').textContent = stats.clienti || 0;
-        $('statAssets').textContent = stats.assets || 0;
-        $('statPED').textContent = stats.pedAttivi || 0;
-      }
-    } catch (e) {
-      console.warn('loadDashboard error:', e);
+    // Tutte e tre le sezioni partono in parallelo — nessun await sequenziale
+    const [stats] = await Promise.all([
+      gas('getStats').catch(e => { console.warn('getStats error:', e); return null; }),
+      loadFeedInitial(),
+      loadProduzione()
+    ]);
+    if (stats) {
+      $('statClienti').textContent = stats.clienti || 0;
+      $('statAssets').textContent = stats.assets || 0;
+      $('statPED').textContent = stats.pedAttivi || 0;
     }
-    loadFeedInitial();
-    loadProduzione();
   }
 
   // ── PRODUZIONE DASHBOARD (Fase 1E) ──
@@ -2510,8 +2515,11 @@ const KR = (() => {
       if (_ptrIndicator) {
         _ptrIndicator.remove();
         _ptrIndicator = null;
+        // Reset TTL così la prossima visita a Stats/Team ricarica anche quello
+        _statsLoadedAt = 0;
+        _teamLoadedAt = 0;
         loadDashboard();
-        if (typeof pollNotifiche === 'function') pollNotifiche();
+        pollNotifiche();
       }
       _ptrStartY = 0;
     });
