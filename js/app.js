@@ -273,7 +273,9 @@ const KR = (() => {
     }
 
     // 4. Nessuna sessione — login manuale
-    $('loginOverlay').classList.remove('hidden');
+    const _lov = $('loginOverlay');
+    _lov.inert = false;
+    _lov.classList.remove('hidden');
   }
 
   async function doLogin() {
@@ -360,7 +362,10 @@ const KR = (() => {
     $('wbAvatar').textContent = currentUser.nome[0];
     $('wbName').textContent = currentUser.nome;
     $('wbRole').textContent = currentUser.role;
-    $('loginOverlay').classList.add('hidden');
+    const _ov = $('loginOverlay');
+    _ov.classList.add('hidden');
+    _ov.inert = true; // impedisce a iOS di focus/autofill campi password nascosti
+    if (document.activeElement) document.activeElement.blur(); // chiude tastiera
 
     // ── Permessi per ruolo ──
     isAdmin = currentUser.role === 'Admin';
