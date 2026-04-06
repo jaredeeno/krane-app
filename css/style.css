@@ -185,12 +185,13 @@ html, body { height:100%; font-family:var(--font); background:var(--bg); color:v
 .dd-trigger { width:100%; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:15px; font-weight:600; }
 .dd-arrow { transition:transform 0.3s; font-size:14px; color:var(--text-s); }
 .dd-arrow.open { transform:rotate(180deg); }
-.dd-menu { position:absolute; top:calc(100% + 6px); left:0; right:0; background:rgba(12,12,28,0.97); border:1px solid var(--glass-border); border-radius:var(--Rs); overflow:hidden; z-index:50; max-height:0; opacity:0; transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s; }
+.dd-menu { position:absolute; top:calc(100% + 6px); left:0; right:0; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); background:rgba(10,10,24,0.92); border:1px solid var(--glass-border); border-radius:var(--Rs); overflow:hidden; z-index:50; max-height:0; opacity:0; box-shadow:0 8px 32px rgba(0,0,0,0.45); transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s; }
 .dd-menu.open { max-height:300px; opacity:1; }
-.dd-option { padding:14px 18px; font-size:14px; font-weight:500; cursor:pointer; transition:background 0.2s; border-bottom:1px solid rgba(255,255,255,0.04); display:flex; align-items:center; gap:10px; }
+.dd-option { padding:14px 18px; font-size:14px; font-weight:500; cursor:pointer; transition:background 0.18s; border-bottom:1px solid rgba(255,255,255,0.04); display:flex; align-items:center; gap:10px; }
 .dd-option:last-child { border:none; }
-.dd-option:active { background:rgba(255,255,255,0.08); }
-.dd-option.selected { color:var(--accent); }
+.dd-option:hover { background:rgba(255,255,255,0.07); }
+.dd-option:active { background:rgba(255,255,255,0.11); }
+.dd-option.selected { color:var(--accent); background:rgba(52,211,153,0.07); }
 .dd-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
 
 /* PED CALENDAR */
@@ -308,10 +309,31 @@ html, body { height:100%; font-family:var(--font); background:var(--bg); color:v
 .chart-bar.glow { box-shadow:0 0 16px var(--accent-g); }
 .chart-bar-label { font-size:10px; color:var(--text-t); font-weight:600; }
 .donut-container { display:flex; align-items:center; gap:28px; }
+.donut-wrapper { position:relative; width:110px; height:110px; flex-shrink:0; }
+.donut-wrapper .donut-svg { width:100%; height:100%; }
 .donut-svg { width:110px; height:110px; flex-shrink:0; }
+.donut-center-label { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:20px; font-weight:700; color:var(--text); pointer-events:none; }
 .donut-legend { display:flex; flex-direction:column; gap:12px; }
 .legend-item { display:flex; align-items:center; gap:10px; font-size:13px; font-weight:500; }
 .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+/* STATS KPI ROW */
+.stats-kpi-row { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px; }
+.stats-kpi-tile { padding:16px 10px; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; animation:cIn 0.5s cubic-bezier(0.4,0,0.2,1) both; }
+.stats-kpi-icon { font-size:22px; line-height:1; }
+.stats-kpi-label { font-size:9px; color:var(--text-t); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+.stats-kpi-value { font-size:17px; font-weight:700; }
+.stats-kpi-value.green { color:var(--accent); }
+.stats-kpi-value.purple { color:var(--a2); }
+.stats-kpi-value.accent { color:var(--accent); }
+
+/* AGENT PILLS (stats breakdown) */
+.agent-pill-row { display:flex; flex-direction:column; gap:10px; }
+.agent-pill { display:flex; align-items:center; gap:14px; padding:14px 16px; }
+.agent-pill-icon { font-size:24px; line-height:1; }
+.agent-pill-info { flex:1; }
+.agent-pill-name { font-size:14px; font-weight:600; margin-bottom:3px; }
+.agent-pill-stats { font-size:12px; color:var(--text-s); }
 
 /* AGENT CARDS (full page) */
 .agent-grid { display:flex; flex-direction:column; gap:12px; }

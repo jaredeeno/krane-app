@@ -135,7 +135,7 @@
 
     <!-- STATISTICHE -->
     <div class="page" id="pageStats">
-      <div class="page-header"><h1>Statistiche</h1><p>Performance e costi del tuo workspace</p></div>
+      <div class="page-header"><h1>Statistiche</h1><p>Performance e costi del workspace</p></div>
       <div class="glass-dropdown">
         <div class="dd-trigger glass" onclick="KR.toggleStatsDropdown()">
           <span id="statsDdLabel">Vista Globale</span>
@@ -146,17 +146,38 @@
         </div>
       </div>
       <div id="statsContent">
-        <div class="chart-card glass">
+        <!-- KPI Row -->
+        <div class="stats-kpi-row">
+          <div class="stats-kpi-tile glass">
+            <div class="stats-kpi-icon">💰</div>
+            <div class="stats-kpi-label">Costo mese</div>
+            <div class="stats-kpi-value green" id="statsCost">—</div>
+          </div>
+          <div class="stats-kpi-tile glass">
+            <div class="stats-kpi-icon">📞</div>
+            <div class="stats-kpi-label">Chiamate API</div>
+            <div class="stats-kpi-value purple" id="statsApiCalls">—</div>
+          </div>
+          <div class="stats-kpi-tile glass">
+            <div class="stats-kpi-icon">✅</div>
+            <div class="stats-kpi-label">Approvazione</div>
+            <div class="stats-kpi-value accent" id="statsApproval">—</div>
+          </div>
+        </div>
+        <!-- Barchart -->
+        <div class="chart-card glass" style="animation-delay:0.05s">
           <div class="chart-title">Asset per mese</div>
           <div class="chart-area" id="statsBarChart"><div class="page-loading"><div class="spinner"></div></div></div>
         </div>
+        <!-- Donut -->
         <div class="chart-card glass" style="animation-delay:0.1s">
           <div class="chart-title">Distribuzione contenuti</div>
           <div class="donut-container" id="statsDonut"><div class="page-loading"><div class="spinner"></div></div></div>
         </div>
-        <div class="stat-grid" id="statsOverview">
-          <div class="stat-tile glass green" style="animation-delay:0.2s"><div class="stat-label">Costo API mese</div><div class="stat-value green" id="statsCost">—</div></div>
-          <div class="stat-tile glass purple" style="animation-delay:0.25s"><div class="stat-label">Tasso approvazione</div><div class="stat-value purple" id="statsApproval">—</div></div>
+        <!-- Agent breakdown -->
+        <div class="chart-card glass" id="statsAgentCard" style="animation-delay:0.15s; display:none">
+          <div class="chart-title">Breakdown agenti</div>
+          <div class="agent-pill-row" id="statsAgentPills"></div>
         </div>
       </div>
     </div>

@@ -73,7 +73,7 @@ const KR = (() => {
   const _gasCache = {};
   const _GAS_CACHE_TTL = 3 * 60 * 1000; // 3 minuti
   // Funzioni cacheable (lettura pura, non modificano dati)
-  const _CACHEABLE = new Set(['getClientiAttivi','getStats','getTeamMembers','getStatisticheGlobali','getFeedRecent']);
+  const _CACHEABLE = new Set(['getClientiAttivi','getStats','getTeamMembers','getFeedRecent']);
 
   async function gas(fn, ...args) {
     const params = new URLSearchParams({ action: fn });
@@ -1744,15 +1744,16 @@ const KR = (() => {
     try {
       const res = await gas('getStatisticheGlobali');
       if (res && res.ok !== false) {
-        $('statsCost').textContent = '$' + (res.costoMese || '0.00');
+        $('statsCost').textContent = '$' + parseFloat(res.costoMese || 0).toFixed(4);
         $('statsApproval').textContent = (res.tassoApprovazione || 0) + '%';
+        if ($('statsApiCalls')) $('statsApiCalls').textContent = res.chiamateAPI || 0;
         renderBarChart(res.assetPerMese || {});
         renderDonut(res.tipi || {});
+        renderAgentPills(res.agenti || []);
       }
     } catch (e) {
       console.warn('loadStats error:', e);
     }
-    // Popola dropdown con clienti
     populateStatsDropdown();
   }
 
@@ -1831,7 +1832,29 @@ const KR = (() => {
       offset -= dash;
       legend += `<div class="legend-item"><div class="legend-dot" style="background:${colors[i % 4]}"></div>${tipo} — ${pct}%</div>`;
     });
-    container.innerHTML = `<svg class="donut-svg" viewBox="0 0 42 42">${circles}</svg><div class="donut-legend">${legend}</div>`;
+    container.innerHTML = `<div class="donut-wrapper"><svg class="donut-svg" viewBox="0 0 42 42">${circles}</svg><div class="donut-center-label">${total}</div></div><div class="donut-legend">${legend}</div>`;
+  }
+
+  function renderAgentPills(agenti) {
+    const card = $('statsAgentCard');
+    const pills = $('statsAgentPills');
+    if (!card || !pills || !agenti || agenti.length === 0) { if (card) card.style.display = 'none'; return; }
+    const getIcon = nome => {
+      const n = nome.toLowerCase();
+      if (n.includes('volpe')) return '🦊';
+      if (n.includes('pika')) return '🐭';
+      if (n === 'sys') return '⚙️';
+      return '🤖';
+    };
+    pills.innerHTML = agenti.map(a => `
+      <div class="agent-pill glass">
+        <span class="agent-pill-icon">${getIcon(a.nome)}</span>
+        <div class="agent-pill-info">
+          <div class="agent-pill-name">${a.nome}</div>
+          <div class="agent-pill-stats">$${a.costo.toFixed(4)} · ${a.chiamate} chiamate</div>
+        </div>
+      </div>`).join('');
+    card.style.display = 'block';
   }
 
   // ── TEAM ──
@@ -2449,6 +2472,49 @@ const KR = (() => {
     // Restore settings toggles
     if (!settings.sound) { const t = $('toggleSound'); if (t) t.classList.remove('on'); }
     if (!settings.vibrate) { const t = $('toggleVibrate'); if (t) t.classList.remove('on'); }
+
+    // Click-outside: chiude tutti i dropdown aperti quando si clicca fuori
+    document.addEventListener('click', e => {
+      document.querySelectorAll('.dd-menu.open').forEach(menu => {
+        if (!menu.closest('.glass-dropdown').contains(e.target)) {
+          menu.classList.remove('open');
+          const arrow = menu.closest('.glass-dropdown').querySelector('.dd-arrow');
+          if (arrow) arrow.classList.remove('open');
+        }
+      });
+    });
+
+    // Pull-to-refresh — solo Dashboard (pagina 0), swipe dall'alto > 60px
+    let _ptrStartY = 0;
+    let _ptrActive = false;
+    let _ptrIndicator = null;
+    document.addEventListener('touchstart', e => {
+      if (currentPage !== 0 || window.scrollY > 0) return;
+      _ptrStartY = e.touches[0].clientY;
+      _ptrActive = true;
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+      if (!_ptrActive) return;
+      const dy = e.touches[0].clientY - _ptrStartY;
+      if (dy > 60 && !_ptrIndicator) {
+        _ptrIndicator = document.createElement('div');
+        _ptrIndicator.id = 'ptrIndicator';
+        _ptrIndicator.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:20px;padding:6px 18px;font-size:13px;font-weight:600;color:var(--accent);z-index:9999;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)';
+        _ptrIndicator.textContent = '↺ Rilascia per aggiornare';
+        document.body.appendChild(_ptrIndicator);
+      }
+    }, { passive: true });
+    document.addEventListener('touchend', () => {
+      if (!_ptrActive) return;
+      _ptrActive = false;
+      if (_ptrIndicator) {
+        _ptrIndicator.remove();
+        _ptrIndicator = null;
+        loadDashboard();
+        if (typeof pollNotifiche === 'function') pollNotifiche();
+      }
+      _ptrStartY = 0;
+    });
   }
 
   // Avvia
